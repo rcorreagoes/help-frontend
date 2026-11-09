@@ -37,7 +37,12 @@ const kpis = ref({
   custoTotal: null,
   impostos: null,
   beneficios: null,
-  provisoes: null
+  provisoes: null,
+  ultimoMes: null,
+  custoTotalMes: null,
+  impostosMes: null,
+  beneficiosMes: null,
+  provisoesMes: null,
 });
 
 // Tabela detalhada
@@ -147,6 +152,11 @@ function renderCharts() {
 
   const elComp = document.getElementById('chartComposicao');
   if (elComp) {
+    const salarioMes = Math.max(
+      (kpis.value.custoTotal ?? 0)
+
+    );
+
     if (chartCompInst) chartCompInst.destroy();
     chartCompInst = new Chart(elComp, {
       type: 'doughnut',
@@ -154,10 +164,10 @@ function renderCharts() {
         labels: ['Salários', 'Impostos', 'Benefícios', 'Provisões'],
         datasets: [{
           data: [
-            custosPorCargo.value.reduce((acc, item) => acc + item.salario_base, 0),
+            salarioMes,
             kpis.value.impostos ?? 0,
             kpis.value.beneficios ?? 0,
-            kpis.value.provisoes ?? 0
+            kpis.value.provisoes ?? 0,
           ],
           backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#a855f7'],
           borderWidth: 2
@@ -192,10 +202,18 @@ async function load() {
     const dataCosts = costsResult.value;
     kpis.value.impostos = dataCosts?.impostos_totais ?? null;
     kpis.value.beneficios = dataCosts?.beneficios_totais ?? null;
+    kpis.value.impostosMes = dataCosts?.impostos_totais_mes ?? null;
+    kpis.value.beneficiosMes = dataCosts?.beneficios_totais_mes ?? null;
+    kpis.value.provisoesMes = dataCosts?.provisoes_totais_mes ?? null;
+    kpis.value.ultimoMes = dataCosts?.ultimo_mes ?? null;
   } else {
     console.error('Falha ao carregar custos totais:', costsResult.reason);
     kpis.value.impostos = null;
     kpis.value.beneficios = null;
+    kpis.value.impostosMes = null;
+    kpis.value.beneficiosMes = null;
+    kpis.value.provisoesMes = null;
+    kpis.value.ultimoMes = null;
   }
 
   let totalProvisoes = null;
@@ -234,12 +252,12 @@ async function load() {
 
   kpis.value.provisoes = totalProvisoes;
 
-  const custoFolha = costsResult.status === 'fulfilled'
+  // custo_total_folha já inclui provisões — usar direto, sem somar novamente
+  kpis.value.custoTotal = costsResult.status === 'fulfilled'
     ? costsResult.value?.custo_total_folha ?? null
     : null;
-
-  kpis.value.custoTotal = Number.isFinite(custoFolha) && Number.isFinite(totalProvisoes)
-    ? custoFolha + totalProvisoes
+  kpis.value.custoTotalMes = costsResult.status === 'fulfilled'
+    ? costsResult.value?.custo_total_folha_mes ?? null
     : null;
 
   renderCharts();
@@ -296,9 +314,48 @@ onMounted(() => {
 
     <KpiGrid layout="four">
       <KpiCard
+        :title="`CUSTO TOTAL FOLHA - ${kpis.ultimoMes ?? 'MÊS ATUAL'}`"
+        :value="`R$ ${formatNumber(kpis.custoTotalMes)}`"
+        footnote=""
+        footnote-tone="positive"
+        icon="fa-solid fa-wallet"
+        accent="blue"
+      >
+        <template #footnote-prefix>
+          <i class="fa-solid fa-arrow-up text-[10px]"></i>
+        </template>
+      </KpiCard>
+
+      <KpiCard
+        title="IMPOSTOS &amp; ENCARGOS"
+        :value="`R$ ${formatNumber(kpis.impostosMes)}`"
+        footnote="INSS, GPS, IRRF &amp; FGTS"
+        icon="fa-solid fa-building-columns"
+        accent="amber"
+      />
+
+      <KpiCard
+        title="BENEFÍCIOS TOTAIS"
+        :value="`R$ ${formatNumber(kpis.beneficiosMes)}`"
+        footnote="VT, VR, Plano Saúde &amp; EPI"
+        icon="fa-solid fa-heart-pulse"
+        accent="green"
+      />
+
+      <KpiCard
+        title="PROVISÃO FÉRIAS/13º/RESCISÃO"
+        :value="`R$ ${formatNumber(kpis.provisoesMes)}`"
+        footnote=""
+        icon="fa-solid fa-piggy-bank"
+        accent="purple"
+      />
+    </KpiGrid>
+
+    <KpiGrid layout="four">
+      <KpiCard
         title="CUSTO TOTAL FOLHA"
         :value="`R$ ${formatNumber(kpis.custoTotal)}`"
-        footnote="+3,2% vs mês anterior"
+        footnote=""
         footnote-tone="positive"
         icon="fa-solid fa-wallet"
         accent="blue"

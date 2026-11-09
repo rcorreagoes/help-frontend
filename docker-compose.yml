@@ -1,0 +1,13 @@
+services:
+  help-frontend:
+    image: help-frontend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Valor de prod definido APENAS aqui (build time do Vite)
+        VITE_API_BASE_URL: "http://host.docker.internal:3002"
+    container_name: help-frontend
+    ports:
+      - "5002:5002"
+    restart: unless-stopped
